@@ -71,35 +71,6 @@ class XIQ:
                 raise Exception
         return response
 
-    def __setup_post_api_call(self, info, url, payload):
-        success = 0
-        for count in range(1, self.totalretries):
-            try:
-                response = self.__post_api_call(url=url, payload=payload)
-            except ValueError as e:
-                print(f"API to {info} failed attempt {count} of {self.totalretries} with {e}")
-            except Exception as e:
-                print(f"API to {info} failed with {e}")
-                print('script is exiting...')
-                raise SystemExit
-            except:
-                print(f"API to {info} failed attempt {count} of {self.totalretries} with unknown API error")
-            else:
-                success = 1
-                break
-        if success != 1:
-            print("failed {}. Cannot continue to import".format(info))
-            print("exiting script...")
-            raise SystemExit
-        if 'error' in response:
-            if response['error_mssage']:
-                log_msg = (f"Status Code {response['error_id']}: {response['error_message']}")
-                logger.error(log_msg)
-                print(f"API Failed {info} with reason: {log_msg}")
-                print("Script is exiting...")
-                raise SystemExit
-        return response
-
     def __setup_post_api_call_no_payload(self, info, url):
         success = 0
         for count in range(1, self.totalretries):
@@ -129,83 +100,6 @@ class XIQ:
                 raise SystemExit
         return response
     
-    def __setup_post_lro_call(self,info,url,payload):
-        success = 0
-        print("Sending CLI commands... ",end="")
-        for count in range(1, self.totalretries):
-            try:
-                lro_url = self.__post_lro_call(url=url,payload=payload)
-            except TypeError as e:
-                print("Failed")
-                print(f"API failed attempt {count} of {self.totalretries} with {e}")
-            except HTTPError as e:
-                print("Failed")
-                print(f"API failed attempt {count} of {self.totalretries} with {e}")
-            except Exception as e:
-                print("Failed")
-                print(f"API to {info} failed with {e}")
-                print('script is exiting...')
-                raise SystemExit
-            except:
-                print(f"API to {info} failed attempt {count} of {self.totalretries} with unknown API error")		
-            else:
-                success = 1
-                break
-        if success != 1:
-            print("failed {}. Cannot continue to import".format(info))
-            print("exiting script...")
-            raise SystemExit
-        print("Done")
-        time.sleep(10)
-        if lro_url:
-            lro_running = True
-            count = 1
-            while lro_running and count < 11:
-                print(f"Attempting to collect CLI responses - attempt {count} of 10")
-                try:
-                    rawData = self.__setup_get_api_call(info='to gather LRO CLI response',url=lro_url)
-                except TypeError as e:
-                    print(f"API failed with {e}")
-                    count+=1
-                    success = False
-                except HTTPError as e:
-                    print(f"API HTTP Error {e}")
-                    count+=1
-                    success = False
-                except Exception as e:
-                    raise SystemExit
-                except:
-                    print(f"API failed to gather LRO CLI response with an unknown API error:\n 	{lro_url}")		
-                    count+=1
-                    success = False
-                else:
-                    success = True
-                if success:
-                    if rawData['done'] == True:
-                        data = rawData['response']
-                        lro_running = False
-                        break
-                    else:
-                        if rawData['metadata']['status'] != "RUNNING":
-                            print(f"It appears that the long-running operation failed. The status is f{rawData['metadata']['status']}")
-                            print(rawData)
-                            lro_running = False
-                        else:
-                            print(f"The long-running operation is not complete. Checking again in 120 secs.")
-                            t = 120
-                            while t:
-                                mins, secs = divmod(t, 60)
-                                timer = '   {:02d}:{:02d}'.format(mins, secs)
-                                print(timer, end='\r')
-                                time.sleep(1)
-                                t -= 1
-
-                count += 1
-        if data:
-            return(data)
-        else:
-            print("collecting CLI failed")
-            raise SystemExit
 
     def __get_api_call(self, url):
         try:
@@ -294,35 +188,6 @@ class XIQ:
             raise ValueError(log_msg)
         else:
             return "Success"
-    
-    def __post_lro_call(self, url, payload = {},):
-        try:
-            response = requests.post(url, headers=self.headers, data=payload, timeout=60)
-        except HTTPError as http_err:
-            raise HTTPError(f'HTTP error occurred: {http_err} - on API {url}')
-        except ReadTimeout as timout_err:
-            raise HTTPError(f'HTTP error occurred: {timout_err} - on API {url}')
-        except Exception as err:
-            raise ValueError(f'Other error occurred: {err}: on API {url}')
-        else:
-            if response is None:
-                log_msg = "ERROR: No response received from XIQ!"
-                logger.error(log_msg)
-                raise ValueError(log_msg)
-            elif response.status_code != 202:
-                log_msg = f"Error - HTTP Status Code: {str(response.status_code)}"
-                logger.error(f"{log_msg}")
-                try:
-                    data = response.json()
-                except json.JSONDecodeError:
-                    logger.warning(f"\t\t{response.text()}")
-                else:
-                    if 'error_message' in data:
-                        logger.warning(f"\t\t{data['error_message']}")
-                        raise Exception(data['error_message'])
-                raise ValueError(log_msg)
-            data = response.headers
-            return data['Location']
     
 
     def __getAccessToken(self, user_name, password):
