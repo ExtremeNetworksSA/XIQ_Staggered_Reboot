@@ -101,27 +101,33 @@ buildingResponse = yesNoLoop("Would you like to filter on a building (This would
 if buildingResponse == 'y':
     building = input("Please enter the name of the building: ")
     print("Collecting Location information")
-    location_df = x.gatherLocations()
-    location_df.set_index('id',inplace=True)
-    filt = (location_df['type'] == 'FLOOR') & (location_df['parent'] == building)
-    floor_list = location_df.loc[filt].index.tolist()
-
+    floor_list = x.getFloors(building)
+    if 'errors' in floor_list:
+        errors = ", ".join(floor_list['errors'])
+        print(errors)
+        print("script is exiting....")
+        raise SystemExit
     if not floor_list:
-        print(f"There was no floors or no building found with the name {building}")
+        print(f"There was no floors associated with the building {building}")
         print("script is exiting....")
         raise SystemExit
 
+
     device_data = []
-    for floor_id in floor_list:
-        print(f"Collecting Devices for floor '{location_df.loc[floor_id,'name']}'...")
+    for floor in floor_list:
+        print(f"Collecting Devices for floor '{floor['name']}'...")
         ## Collect Devices
-        temp_data = x.collectDevices(pageSize,location_id=floor_id)
+        temp_data = x.collectDevices(pageSize,location_id=floor['id'])
         device_data = device_data + temp_data
         #pp(device_data)
 
 else:
     device_data = x.collectDevices(pageSize)
 
+if not device_data:
+    print("There were no devices found!")
+    print("script is exiting....")
+    raise SystemExit
 
 device_df = pd.DataFrame(device_data)
 device_df.set_index('id',inplace=True)
