@@ -146,7 +146,8 @@ if preview == 'n':
     raise SystemExit
 
 print("Starting the Staggered Reboot...\n")
-for device_id in reboot_devices:
+for device_id in reboot_devices.index:
+    print(device_id)
     print(f"Sending reboot to {reboot_devices.loc[device_id,'hostname']} ({reboot_devices.loc[device_id,'ip_address']})... ",end="")
     response = x.rebootDevice(device_id)
     if response == "Success":
